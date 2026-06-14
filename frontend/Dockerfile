@@ -5,10 +5,10 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install
 
-COPY tsconfig*.json vite.config.ts index.html ./
-COPY src ./src
+# Copy all remaining source files in one step so BuildKit cannot serve a stale
+# cached layer when new subdirectories (pages/, components/) are added on Windows.
+COPY . .
 
-# Frontend talks to the backend via the nginx /api proxy (same origin).
 ENV VITE_API_BASE_URL=/api
 RUN npm run build
 
