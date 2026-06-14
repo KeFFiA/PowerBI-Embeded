@@ -15,7 +15,8 @@
     "isolatedModules": true,
     "moduleDetection": "force",
     "allowImportingTsExtensions": false,
-    "noEmit": true
+    "noEmit": true,
+    "forceConsistentCasingInFileNames": true
   },
   "include": ["src"]
 }
