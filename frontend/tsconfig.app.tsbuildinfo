@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/api/embed.ts","./src/components/fullreportembed.tsx","./src/components/reportcard.tsx","./src/pages/homepage.tsx","./src/pages/reportpage.tsx","./src/powerbi/service.ts"],"version":"5.9.3"}
