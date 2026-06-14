@@ -1,24 +1,41 @@
-import type { EmbedConfigResponse } from '../powerbi/types';
-
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
-export interface FetchEmbedConfigArgs {
-  /** Friendly report key from the backend allowlist, OR raw ids below. */
+export interface EmbedConfigResponse {
+  reportId: string;
+  reportName: string;
+  embedUrl: string;
+  datasetId: string;
+  pageName: string | null;
+  tokenType: 'Embed';
+  accessToken: string;
+  tokenId: string;
+  expiration: string;
+}
+
+export interface ReportSummary {
+  key: string;
+  name: string;
+  pages: string[];
+  visuals: string[];
+  rlsEnabled: boolean;
+}
+
+export async function fetchReports(): Promise<ReportSummary[]> {
+  const res = await fetch(`${API_BASE}/embed/reports`);
+  if (!res.ok) throw new Error(`Failed to fetch reports (${res.status})`);
+  const data = (await res.json()) as { reports: ReportSummary[] };
+  return data.reports;
+}
+
+export async function fetchEmbedConfig(args: {
   key?: string;
   workspaceId?: string;
   reportId?: string;
   pageName?: string;
   visualNames?: string[];
-  /** Optional RLS request (must be enabled + allowed server-side). */
   rls?: { username: string; roles: string[] };
   signal?: AbortSignal;
-}
-
-/**
- * Asks the backend for a safe embed configuration. The browser never sees the
- * Azure client secret or the AAD token — only a short-lived embed token.
- */
-export async function fetchEmbedConfig(args: FetchEmbedConfigArgs): Promise<EmbedConfigResponse> {
+}): Promise<EmbedConfigResponse> {
   const { signal, ...body } = args;
   const res = await fetch(`${API_BASE}/embed/token`, {
     method: 'POST',
@@ -30,10 +47,10 @@ export async function fetchEmbedConfig(args: FetchEmbedConfigArgs): Promise<Embe
   if (!res.ok) {
     let message = `Embed config request failed (${res.status})`;
     try {
-      const err = await res.json();
+      const err = (await res.json()) as { message?: string };
       if (err?.message) message = err.message;
     } catch {
-      /* ignore parse errors */
+      /* ignore */
     }
     throw new Error(message);
   }

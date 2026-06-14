@@ -23,6 +23,8 @@ const rlsSchema = z.object({
 const allowedReportSchema = z.object({
   // Friendly key the frontend uses instead of raw GUIDs (optional but recommended).
   key: z.string().optional(),
+  // Display name shown on the home page cards.
+  name: z.string().optional(),
   workspaceId: z.string().min(1),
   reportId: z.string().min(1),
   datasetId: z.string().optional(),

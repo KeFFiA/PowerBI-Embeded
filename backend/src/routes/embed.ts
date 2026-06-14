@@ -23,6 +23,7 @@ embedRouter.get('/reports', (_req, res) => {
   res.json({
     reports: config.allowlist.reports.map((r) => ({
       key: r.key ?? r.reportId,
+      name: r.name ?? r.key ?? r.reportId,
       pages: r.pages,
       visuals: r.visuals,
       rlsEnabled: r.rls.enabled,
