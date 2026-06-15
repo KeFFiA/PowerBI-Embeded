@@ -24,6 +24,11 @@ COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
 COPY --chown=node:node package.json ./
 
+# Create the dashboard-config directory and give the node user ownership
+# before switching to that user. The volume mount in docker-compose overrides
+# this at runtime, but if no volume is used the directory is still writable.
+RUN mkdir -p /app/data/configs && chown -R node:node /app/data
+
 USER node
 EXPOSE 4000
 

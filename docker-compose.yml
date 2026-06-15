@@ -23,6 +23,7 @@ services:
       EMBED_ALLOWLIST_FILE: /run/config/allowlist.json
     volumes:
       - ./backend/allowlist.json:/run/config/allowlist.json:ro
+      - dashboard-configs:/app/data/configs
     expose:
       - "4000"
     # Uncomment to hit the API directly for debugging:
@@ -38,3 +39,7 @@ services:
       - backend
     ports:
       - "8080:80"
+
+volumes:
+  # Persists admin dashboard configs across container restarts and rebuilds.
+  dashboard-configs:

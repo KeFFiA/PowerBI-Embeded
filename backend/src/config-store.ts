@@ -4,7 +4,13 @@ import { z } from 'zod';
 
 const DATA_DIR = process.env.DASHBOARD_CONFIG_DIR ?? path.join(__dirname, '..', 'data', 'configs');
 
-mkdirSync(DATA_DIR, { recursive: true });
+// Lazy init — only create the directory when it is first needed, not at import time.
+let dirEnsured = false;
+function ensureDir() {
+  if (dirEnsured) return;
+  mkdirSync(DATA_DIR, { recursive: true });
+  dirEnsured = true;
+}
 
 export const widgetConfigSchema = z.object({
   id: z.string().min(1),
@@ -33,6 +39,7 @@ function safePath(key: string): string {
 }
 
 export function getConfig(key: string): DashboardConfig | null {
+  ensureDir();
   const filePath = safePath(key);
   if (!existsSync(filePath)) return null;
   try {
@@ -44,6 +51,7 @@ export function getConfig(key: string): DashboardConfig | null {
 }
 
 export function saveConfig(key: string, cfg: Omit<DashboardConfig, 'updatedAt'>): DashboardConfig {
+  ensureDir();
   const filePath = safePath(key);
   const full: DashboardConfig = { ...cfg, reportKey: key, updatedAt: new Date().toISOString() };
   dashboardConfigSchema.parse(full);
