@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  discoverReportVisuals,
   fetchDashboardConfig,
   fetchReports,
   saveDashboardConfig,
   type ReportSummary,
 } from '../api/embed';
-import type { DashboardConfig, PageWithVisuals, WidgetConfig } from '../types/dashboard';
+import { useReportDiscover } from '../powerbi/useReportDiscover';
+import type { DashboardConfig, WidgetConfig } from '../types/dashboard';
 
 const GRID_COL_OPTIONS = [2, 3, 4, 6];
 const COL_SPAN_OPTIONS = [1, 2, 3, 4, 6];
@@ -19,12 +19,13 @@ export function AdminReportPage() {
 
   const [report, setReport] = useState<ReportSummary | null>(null);
   const [config, setConfig] = useState<DashboardConfig | null>(null);
-  const [pages, setPages] = useState<PageWithVisuals[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
-  const [discovering, setDiscovering] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const { containerRef: discoverContainerRef, discover, discovering, pages, error: discoverError } =
+    useReportDiscover(key ?? '');
 
   useEffect(() => {
     if (!key) { navigate('/admin'); return; }
@@ -35,20 +36,6 @@ export function AdminReportPage() {
       })
       .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : 'Ошибка загрузки'));
   }, [key, navigate]);
-
-  const handleDiscover = useCallback(async () => {
-    if (!key) return;
-    setDiscovering(true);
-    setActionError(null);
-    try {
-      const result = await discoverReportVisuals(key);
-      setPages(result.pages);
-    } catch (e) {
-      setActionError(e instanceof Error ? e.message : 'Ошибка обнаружения визуалов');
-    } finally {
-      setDiscovering(false);
-    }
-  }, [key]);
 
   const addWidget = useCallback(
     (pageName: string, visualName: string, title: string, detectedType: 'visual' | 'slicer') => {
@@ -168,11 +155,25 @@ export function AdminReportPage() {
         </div>
       </header>
 
-      {actionError && (
+      {(actionError || discoverError) && (
         <div className="admin-error" style={{ margin: '0 24px', marginTop: 12 }}>
-          {actionError}
+          {actionError ?? discoverError}
         </div>
       )}
+
+      {/* Off-screen container used by useReportDiscover to briefly embed the report */}
+      <div
+        ref={discoverContainerRef}
+        style={{
+          position: 'fixed',
+          top: -2000,
+          left: -2000,
+          width: 800,
+          height: 600,
+          visibility: 'hidden',
+          pointerEvents: 'none',
+        }}
+      />
 
       <div className="admin-body">
         {/* Left: visual discovery panel */}
@@ -181,7 +182,7 @@ export function AdminReportPage() {
             <h2 className="admin-sidebar__title">Визуалы отчёта</h2>
             <button
               className="btn btn--secondary btn--sm"
-              onClick={handleDiscover}
+              onClick={discover}
               disabled={discovering}
               type="button"
             >

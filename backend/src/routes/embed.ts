@@ -2,7 +2,7 @@ import { Router, type RequestHandler } from 'express';
 import { z } from 'zod';
 import { resolveAllowedReport, AllowlistError } from '../allowlist';
 import { getPowerBiAccessToken } from '../auth';
-import { getReport, generateReportEmbedToken, getReportPages, getPageVisuals, type EffectiveIdentity } from '../powerbi';
+import { getReport, generateReportEmbedToken, getReportPages, getPageVisuals, PowerBiApiError, type EffectiveIdentity } from '../powerbi';
 import { config } from '../config';
 import { logger } from '../logger';
 
@@ -119,8 +119,11 @@ embedRouter.post(
 
 /**
  * GET /api/embed/reports/:key/discover
- * Returns all pages and visuals for the given report (admin-only operation).
- * Used by the admin panel to populate the visual picker.
+ * Returns pages for the given report. Visuals are NOT returned here because
+ * the Power BI REST API /pages/{name}/visuals endpoint is only available to
+ * tenant admins. Visual discovery happens on the frontend via the JS SDK
+ * (report.getPages() → page.getVisuals()). Pages are returned so the frontend
+ * can show page names before the JS embed finishes loading.
  */
 embedRouter.get(
   '/reports/:key/discover',
@@ -132,10 +135,19 @@ embedRouter.get(
     const aadToken = await getPowerBiAccessToken();
     const pages = await getReportPages(report, aadToken);
 
+    // Best-effort per-page visuals via REST API; silently skip pages where the
+    // endpoint returns 404 (not available for non-admin service principals).
     const pagesWithVisuals = await Promise.all(
       pages.map(async (page) => {
-        const visuals = await getPageVisuals(report, page.name, aadToken);
-        return { ...page, visuals };
+        try {
+          const visuals = await getPageVisuals(report, page.name, aadToken);
+          return { ...page, visuals };
+        } catch (err) {
+          if (err instanceof PowerBiApiError && err.status === 404) {
+            return { ...page, visuals: [] };
+          }
+          throw err;
+        }
       }),
     );
 
