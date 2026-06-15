@@ -13,6 +13,15 @@ const GRID_COL_OPTIONS = [2, 3, 4, 6];
 const COL_SPAN_OPTIONS = [1, 2, 3, 4, 6];
 const ROW_SPAN_OPTIONS = [1, 2, 3];
 
+// crypto.randomUUID() requires a secure context (HTTPS). Provide a fallback
+// so the admin panel works on plain HTTP too.
+function generateId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
 export function AdminReportPage() {
   const { key } = useParams<{ key: string }>();
   const navigate = useNavigate();
@@ -39,10 +48,13 @@ export function AdminReportPage() {
 
   const addWidget = useCallback(
     (pageName: string, visualName: string, title: string, detectedType: 'visual' | 'slicer') => {
+      // Generate the ID outside the updater — updaters must be pure (no side effects),
+      // and crypto.randomUUID() is unavailable on non-HTTPS contexts.
+      const id = generateId();
       setConfig((prev) => {
         if (!prev) return prev;
         const widget: WidgetConfig = {
-          id: crypto.randomUUID(),
+          id,
           type: detectedType,
           visualName,
           pageName,
