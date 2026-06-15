@@ -1,3 +1,5 @@
+import type { DashboardConfig, DiscoverResult } from '../types/dashboard';
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
 export interface EmbedConfigResponse {
@@ -56,4 +58,32 @@ export async function fetchEmbedConfig(args: {
   }
 
   return (await res.json()) as EmbedConfigResponse;
+}
+
+export async function discoverReportVisuals(key: string): Promise<DiscoverResult> {
+  const res = await fetch(`${API_BASE}/embed/reports/${encodeURIComponent(key)}/discover`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as { message?: string };
+    throw new Error(err?.message ?? `Discovery failed (${res.status})`);
+  }
+  return (await res.json()) as DiscoverResult;
+}
+
+export async function fetchDashboardConfig(key: string): Promise<DashboardConfig> {
+  const res = await fetch(`${API_BASE}/admin/configs/${encodeURIComponent(key)}`);
+  if (!res.ok) throw new Error(`Failed to fetch dashboard config (${res.status})`);
+  return (await res.json()) as DashboardConfig;
+}
+
+export async function saveDashboardConfig(key: string, cfg: DashboardConfig): Promise<DashboardConfig> {
+  const res = await fetch(`${API_BASE}/admin/configs/${encodeURIComponent(key)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(cfg),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as { message?: string };
+    throw new Error(err?.message ?? `Failed to save config (${res.status})`);
+  }
+  return (await res.json()) as DashboardConfig;
 }

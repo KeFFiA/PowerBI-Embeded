@@ -82,6 +82,46 @@ export interface EmbedToken {
  * is used, the access level still comes from server config — the browser cannot
  * escalate it.
  */
+export interface PageInfo {
+  name: string;
+  displayName: string;
+  order: number;
+}
+
+export interface VisualInfo {
+  name: string;
+  title: string;
+  type: string;
+  layout?: { x: number; y: number; width: number; height: number };
+}
+
+export async function getReportPages(report: AllowedReport, accessToken: string): Promise<PageInfo[]> {
+  const data = await pbiFetch<{ value: Array<{ name: string; displayName: string; order: number }> }>(
+    `/groups/${report.workspaceId}/reports/${report.reportId}/pages`,
+    accessToken,
+  );
+  return data.value.slice().sort((a, b) => a.order - b.order);
+}
+
+export async function getPageVisuals(
+  report: AllowedReport,
+  pageName: string,
+  accessToken: string,
+): Promise<VisualInfo[]> {
+  const data = await pbiFetch<{
+    value: Array<{
+      name: string;
+      title: string;
+      type: string;
+      layout?: { x: number; y: number; width: number; height: number };
+    }>;
+  }>(
+    `/groups/${report.workspaceId}/reports/${report.reportId}/pages/${encodeURIComponent(pageName)}/visuals`,
+    accessToken,
+  );
+  return data.value;
+}
+
 export async function generateReportEmbedToken(args: {
   report: AllowedReport;
   datasetId: string;

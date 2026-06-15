@@ -6,6 +6,7 @@ import { pinoHttp } from 'pino-http';
 import { config } from './config';
 import { logger } from './logger';
 import { embedRouter } from './routes/embed';
+import { adminRouter } from './routes/admin';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 
 const app = express();
@@ -42,6 +43,7 @@ app.use(
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
 app.use('/api/embed', embedRouter);
+app.use('/api/admin', adminRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

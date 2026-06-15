@@ -2,7 +2,7 @@ import { Router, type RequestHandler } from 'express';
 import { z } from 'zod';
 import { resolveAllowedReport, AllowlistError } from '../allowlist';
 import { getPowerBiAccessToken } from '../auth';
-import { getReport, generateReportEmbedToken, type EffectiveIdentity } from '../powerbi';
+import { getReport, generateReportEmbedToken, getReportPages, getPageVisuals, type EffectiveIdentity } from '../powerbi';
 import { config } from '../config';
 import { logger } from '../logger';
 
@@ -114,5 +114,31 @@ embedRouter.post(
       // ISO timestamp; the frontend schedules a refresh before this moment.
       expiration: embed.expiration,
     });
+  }),
+);
+
+/**
+ * GET /api/embed/reports/:key/discover
+ * Returns all pages and visuals for the given report (admin-only operation).
+ * Used by the admin panel to populate the visual picker.
+ */
+embedRouter.get(
+  '/reports/:key/discover',
+  asyncHandler(async (req, res) => {
+    const key = req.params.key;
+    const report = config.allowlist.reports.find((r) => (r.key ?? r.reportId) === key);
+    if (!report) throw new AllowlistError('Report not found in allowlist.');
+
+    const aadToken = await getPowerBiAccessToken();
+    const pages = await getReportPages(report, aadToken);
+
+    const pagesWithVisuals = await Promise.all(
+      pages.map(async (page) => {
+        const visuals = await getPageVisuals(report, page.name, aadToken);
+        return { ...page, visuals };
+      }),
+    );
+
+    res.json({ pages: pagesWithVisuals });
   }),
 );

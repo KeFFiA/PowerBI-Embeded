@@ -28,6 +28,17 @@ export function HomePage() {
           </svg>
           <span className="home-header__brand">Analytics</span>
         </div>
+        <button
+          className="btn btn--secondary home-header__admin"
+          onClick={() => navigate('/admin')}
+          type="button"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <circle cx="7" cy="7" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.93 2.93l1.06 1.06M10.01 10.01l1.06 1.06M2.93 11.07l1.06-1.06M10.01 3.99l1.06-1.06" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+          </svg>
+          Администратор
+        </button>
       </header>
 
       <main className="home-main">
@@ -60,6 +71,7 @@ export function HomePage() {
                 key={r.key}
                 report={r}
                 onClick={() => navigate(`/report/${r.key}`, { state: { name: r.name } })}
+                onDashboardClick={() => navigate(`/dashboard/${r.key}`)}
               />
             ))}
           </div>
