@@ -79,14 +79,14 @@ export function FullReportEmbed({ reportKey }: FullReportEmbedProps) {
           if (cancelled) return;
           const detail = (event as unknown as { detail?: { message?: string } }).detail;
           setStatus('error');
-          setError(detail?.message ?? 'Power BI не смог загрузить отчёт.');
+          setError(detail?.message ?? 'Power BI could not load the report.');
         });
 
         scheduleRefresh(cfg.expiration);
       } catch (err) {
         if (cancelled || controller.signal.aborted) return;
         setStatus('error');
-        setError(err instanceof Error ? err.message : 'Не удалось загрузить конфигурацию.');
+        setError(err instanceof Error ? err.message : 'Could not load the embed configuration.');
       }
     })();
 
@@ -105,15 +105,15 @@ export function FullReportEmbed({ reportKey }: FullReportEmbedProps) {
       {status === 'loading' && (
         <div className="full-report-overlay">
           <div className="pbi-spinner" />
-          <span>Загрузка отчёта…</span>
+          <span>Loading report…</span>
         </div>
       )}
       {status === 'error' && (
         <div className="full-report-overlay full-report-overlay--error">
-          <span className="full-report-error-title">Ошибка загрузки</span>
+          <span className="full-report-error-title">Failed to load</span>
           <span className="full-report-error-msg">{error}</span>
           <button className="pbi-card__retry" onClick={retry} type="button">
-            Повторить
+            Retry
           </button>
         </div>
       )}

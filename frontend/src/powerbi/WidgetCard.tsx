@@ -21,7 +21,7 @@ export function WidgetCard({ title, type, status, error, onRetry, colSpan, rowSp
     <div className={`widget-card${type === 'slicer' ? ' widget-card--slicer' : ''}`} style={style}>
       <div className="widget-card__header">
         <span className="widget-card__title">{title}</span>
-        {type === 'slicer' && <span className="widget-card__badge">Фильтр</span>}
+        {type === 'slicer' && <span className="widget-card__badge">Filter</span>}
       </div>
       <div className="widget-card__body">
         {status === 'loading' && (
@@ -34,7 +34,7 @@ export function WidgetCard({ title, type, status, error, onRetry, colSpan, rowSp
             <span className="widget-error-text">{error}</span>
             {onRetry && (
               <button className="pbi-card__retry" onClick={onRetry} type="button">
-                Повторить
+                Retry
               </button>
             )}
           </div>

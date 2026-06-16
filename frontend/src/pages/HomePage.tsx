@@ -12,7 +12,7 @@ export function HomePage() {
   useEffect(() => {
     fetchReports()
       .then(setReports)
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Ошибка загрузки'))
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -37,14 +37,14 @@ export function HomePage() {
             <circle cx="7" cy="7" r="2.5" stroke="currentColor" strokeWidth="1.5" />
             <path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.93 2.93l1.06 1.06M10.01 10.01l1.06 1.06M2.93 11.07l1.06-1.06M10.01 3.99l1.06-1.06" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
           </svg>
-          Администратор
+          Admin
         </button>
       </header>
 
       <main className="home-main">
         <div className="home-hero">
-          <h1 className="home-hero__title">Отчёты</h1>
-          <p className="home-hero__subtitle">Выберите отчёт для просмотра</p>
+          <h1 className="home-hero__title">Reports</h1>
+          <p className="home-hero__subtitle">Open a report or build its widget dashboard</p>
         </div>
 
         {loading && (
@@ -61,7 +61,7 @@ export function HomePage() {
         )}
 
         {!loading && !error && reports.length === 0 && (
-          <p className="home-empty">Нет доступных отчётов. Проверьте файл allowlist.json.</p>
+          <p className="home-empty">No reports available. Check allowlist.json.</p>
         )}
 
         {!loading && !error && reports.length > 0 && (

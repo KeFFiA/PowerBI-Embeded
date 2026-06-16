@@ -11,7 +11,7 @@ export function AdminPage() {
   useEffect(() => {
     fetchReports()
       .then(setReports)
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Ошибка загрузки'))
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -22,9 +22,9 @@ export function AdminPage() {
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
             <path d="M11.25 13.5L6.75 9L11.25 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          Главная
+          Home
         </button>
-        <h1 className="admin-header__title">Панель администратора</h1>
+        <h1 className="admin-header__title">Admin panel</h1>
       </header>
 
       <div className="admin-reports-list">
@@ -37,7 +37,7 @@ export function AdminPage() {
         {error && <div className="admin-error">{error}</div>}
 
         {!loading && !error && reports.length === 0 && (
-          <p style={{ color: '#667085', fontSize: 14 }}>Нет доступных отчётов.</p>
+          <p style={{ color: '#667085', fontSize: 14 }}>No reports available.</p>
         )}
 
         {reports.map((r) => (
@@ -45,7 +45,7 @@ export function AdminPage() {
             <div>
               <div className="admin-report-row__name">{r.name}</div>
               <div style={{ fontSize: 12, color: '#98a2b3', marginTop: 2 }}>
-                {r.rlsEnabled ? 'RLS включён · ' : ''}{r.pages.length > 0 ? `${r.pages.length} страниц` : 'Все страницы'}
+                {r.rlsEnabled ? 'RLS enabled · ' : ''}{r.pages.length > 0 ? `${r.pages.length} pages` : 'All pages'}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -54,14 +54,14 @@ export function AdminPage() {
                 onClick={() => navigate(`/dashboard/${r.key}`)}
                 type="button"
               >
-                Дашборд
+                Dashboard
               </button>
               <button
                 className="btn btn--primary"
                 onClick={() => navigate(`/admin/${r.key}`)}
                 type="button"
               >
-                Настроить
+                Configure
               </button>
             </div>
           </div>

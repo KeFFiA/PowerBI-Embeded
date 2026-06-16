@@ -49,7 +49,7 @@ export function useReportDiscover(reportKey: string) {
         const timer = setTimeout(() => {
           report.off('rendered');
           report.off('error');
-          reject(new Error('Тайм-аут: отчёт не загрузился за 30 секунд'));
+          reject(new Error('Timed out: the report didn’t load within 30 seconds'));
         }, 30_000);
 
         report.on('rendered', () => {
@@ -64,7 +64,7 @@ export function useReportDiscover(reportKey: string) {
           report.off('rendered');
           report.off('error');
           const detail = (event as unknown as { detail?: { message?: string } }).detail;
-          reject(new Error(detail?.message ?? 'Ошибка загрузки отчёта'));
+          reject(new Error(detail?.message ?? 'Failed to load the report'));
         });
       });
 
@@ -96,7 +96,7 @@ export function useReportDiscover(reportKey: string) {
 
       setPages(result);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Ошибка обнаружения визуалов');
+      setError(e instanceof Error ? e.message : 'Failed to discover visuals');
     } finally {
       setDiscovering(false);
       if (containerRef.current) {

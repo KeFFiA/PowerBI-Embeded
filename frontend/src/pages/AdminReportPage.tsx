@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   fetchDashboardConfig,
@@ -16,7 +16,7 @@ import type {
 
 const GRID_COL_OPTIONS = [2, 3, 4, 6];
 const COL_SPAN_OPTIONS = [1, 2, 3, 4, 6];
-const ROW_SPAN_OPTIONS = [1, 2, 3];
+const ROW_SPAN_OPTIONS = [1, 2, 3, 4];
 
 // crypto.randomUUID() requires a secure context (HTTPS). Provide a fallback
 // so the admin panel works on plain HTTP too.
@@ -48,7 +48,7 @@ export function AdminReportPage() {
         setConfig(cfg);
         setReport(reports.find((r) => r.key === key) ?? null);
       })
-      .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : 'Ошибка загрузки'));
+      .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : 'Failed to load'));
   }, [key, navigate]);
 
   const addWidget = useCallback(
@@ -65,7 +65,8 @@ export function AdminReportPage() {
           pageName,
           title: title || visualName,
           colSpan: detectedType === 'slicer' ? 1 : 2,
-          rowSpan: 1,
+          // Slicers are short; charts need a couple of rows to be readable.
+          rowSpan: detectedType === 'slicer' ? 1 : 2,
           order: prev.widgets.length,
         };
         return { ...prev, widgets: [...prev.widgets, widget] };
@@ -114,7 +115,7 @@ export function AdminReportPage() {
       if (!prev) return prev;
       const control: FilterControlConfig = {
         id,
-        title: 'Новый фильтр',
+        title: 'New filter',
         table: '',
         column: '',
         allowToggleOff: true,
@@ -146,7 +147,7 @@ export function AdminReportPage() {
   const addFilterButton = useCallback((controlId: string) => {
     setConfig((prev) => {
       if (!prev) return prev;
-      const button: FilterButtonConfig = { label: 'Кнопка', operator: 'In', values: [] };
+      const button: FilterButtonConfig = { label: 'Button', operator: 'In', values: [] };
       return {
         ...prev,
         filterControls: (prev.filterControls ?? []).map((c) =>
@@ -194,10 +195,10 @@ export function AdminReportPage() {
     try {
       const saved = await saveDashboardConfig(key, config);
       setConfig(saved);
-      setSaveMsg('Сохранено ✓');
+      setSaveMsg('Saved ✓');
       setTimeout(() => setSaveMsg(null), 3000);
     } catch (e) {
-      setActionError(e instanceof Error ? e.message : 'Ошибка сохранения');
+      setActionError(e instanceof Error ? e.message : 'Failed to save');
     } finally {
       setSaving(false);
     }
@@ -230,7 +231,7 @@ export function AdminReportPage() {
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
             <path d="M11.25 13.5L6.75 9L11.25 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          Назад
+          Back
         </button>
         <h1 className="admin-header__title">{report?.name ?? key}</h1>
         <div className="admin-header__actions">
@@ -240,7 +241,7 @@ export function AdminReportPage() {
             onClick={() => navigate(`/dashboard/${key}`)}
             type="button"
           >
-            Просмотр дашборда
+            View dashboard
           </button>
           <button
             className="btn btn--primary"
@@ -248,7 +249,7 @@ export function AdminReportPage() {
             disabled={saving}
             type="button"
           >
-            {saving ? 'Сохранение…' : 'Сохранить'}
+            {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
       </header>
@@ -277,20 +278,20 @@ export function AdminReportPage() {
         {/* Left: visual discovery panel */}
         <aside className="admin-sidebar">
           <div className="admin-sidebar__header">
-            <h2 className="admin-sidebar__title">Визуалы отчёта</h2>
+            <h2 className="admin-sidebar__title">Report visuals</h2>
             <button
               className="btn btn--secondary btn--sm"
               onClick={discover}
               disabled={discovering}
               type="button"
             >
-              {discovering ? 'Загрузка…' : 'Обнаружить'}
+              {discovering ? 'Loading…' : 'Discover'}
             </button>
           </div>
 
           {pages.length === 0 && !discovering && (
             <p className="admin-sidebar__empty">
-              Нажмите «Обнаружить» чтобы получить список всех визуалов из отчёта Power BI.
+              Click “Discover” to list every visual in the Power BI report.
             </p>
           )}
 
@@ -298,7 +299,7 @@ export function AdminReportPage() {
             <div key={page.name} className="discover-page">
               <div className="discover-page__name">{page.displayName}</div>
               {page.visuals.length === 0 && (
-                <p style={{ fontSize: 12, color: '#98a2b3', padding: '4px 0' }}>Нет визуалов</p>
+                <p style={{ fontSize: 12, color: '#98a2b3', padding: '4px 0' }}>No visuals</p>
               )}
               {page.visuals.map((v) => {
                 const detectedType: 'visual' | 'slicer' =
@@ -313,7 +314,7 @@ export function AdminReportPage() {
                       className="btn btn--ghost btn--sm"
                       onClick={() => addWidget(page.name, v.name, v.title || v.name, detectedType)}
                       type="button"
-                      title="Добавить в дашборд"
+                      title="Add to dashboard"
                     >
                       +
                     </button>
@@ -328,13 +329,13 @@ export function AdminReportPage() {
         <main className="admin-main">
           <div className="admin-main__top">
             <h2 className="admin-main__title">
-              Дашборд
+              Layout
               <span style={{ fontWeight: 400, color: '#98a2b3', marginLeft: 8 }}>
-                ({sortedWidgets.length} виджетов)
+                ({sortedWidgets.length} {sortedWidgets.length === 1 ? 'widget' : 'widgets'})
               </span>
             </h2>
             <div className="admin-grid-cols">
-              <label htmlFor="grid-cols">Колонок в сетке:</label>
+              <label htmlFor="grid-cols">Grid columns</label>
               <select
                 id="grid-cols"
                 value={config.gridColumns}
@@ -351,6 +352,26 @@ export function AdminReportPage() {
             </div>
           </div>
 
+          {sortedWidgets.length > 0 && (
+            <div
+              className="layout-preview"
+              style={{ '--grid-cols': config.gridColumns } as CSSProperties}
+              aria-hidden="true"
+            >
+              {sortedWidgets.map((w, i) => (
+                <div
+                  key={w.id}
+                  className={`layout-preview__tile${w.type === 'slicer' ? ' layout-preview__tile--slicer' : ''}`}
+                  style={{ '--col-span': w.colSpan, '--row-span': w.rowSpan } as CSSProperties}
+                  title={w.title}
+                >
+                  <span className="layout-preview__num">{i + 1}</span>
+                  <span className="layout-preview__label">{w.title}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           {sortedWidgets.length === 0 ? (
             <div className="admin-widgets-empty">
               <svg width="40" height="40" viewBox="0 0 40 40" fill="none" style={{ opacity: 0.3 }}>
@@ -359,19 +380,20 @@ export function AdminReportPage() {
                 <rect x="4" y="22" width="14" height="14" rx="3" stroke="#667085" strokeWidth="2" />
                 <rect x="22" y="22" width="14" height="14" rx="3" stroke="#667085" strokeWidth="2" />
               </svg>
-              <p>Добавьте визуалы из панели слева</p>
+              <p>Add visuals from the panel on the left</p>
             </div>
           ) : (
             <div className="admin-widgets">
               {sortedWidgets.map((widget, idx) => (
                 <div key={widget.id} className="admin-widget">
                   <div className="admin-widget__controls">
+                    <span className="admin-widget__num">{idx + 1}</span>
                     <button
                       className="admin-widget__move"
                       onClick={() => moveWidget(widget.id, -1)}
                       disabled={idx === 0}
                       type="button"
-                      title="Переместить выше"
+                      title="Move up"
                     >
                       ↑
                     </button>
@@ -380,7 +402,7 @@ export function AdminReportPage() {
                       onClick={() => moveWidget(widget.id, 1)}
                       disabled={idx === sortedWidgets.length - 1}
                       type="button"
-                      title="Переместить ниже"
+                      title="Move down"
                     >
                       ↓
                     </button>
@@ -392,7 +414,7 @@ export function AdminReportPage() {
                         className="admin-widget__title-input"
                         value={widget.title}
                         onChange={(e) => updateWidget(widget.id, { title: e.target.value })}
-                        placeholder="Название виджета"
+                        placeholder="Widget title"
                       />
                       <select
                         value={widget.type}
@@ -400,8 +422,8 @@ export function AdminReportPage() {
                           updateWidget(widget.id, { type: e.target.value as 'visual' | 'slicer' })
                         }
                       >
-                        <option value="visual">Визуал</option>
-                        <option value="slicer">Слайсер</option>
+                        <option value="visual">Visual</option>
+                        <option value="slicer">Slicer</option>
                       </select>
                     </div>
                     <div className="admin-widget__row admin-widget__meta">
@@ -409,7 +431,7 @@ export function AdminReportPage() {
                         {widget.pageName} / {widget.visualName}
                       </span>
                       <label className="admin-widget__size-label">
-                        Шир:
+                        Width
                         <select
                           value={widget.colSpan}
                           onChange={(e) =>
@@ -417,12 +439,12 @@ export function AdminReportPage() {
                           }
                         >
                           {COL_SPAN_OPTIONS.map((n) => (
-                            <option key={n} value={n}>{n}</option>
+                            <option key={n} value={n}>{n} {n === 1 ? 'col' : 'cols'}</option>
                           ))}
                         </select>
                       </label>
                       <label className="admin-widget__size-label">
-                        Выс:
+                        Height
                         <select
                           value={widget.rowSpan}
                           onChange={(e) =>
@@ -430,7 +452,7 @@ export function AdminReportPage() {
                           }
                         >
                           {ROW_SPAN_OPTIONS.map((n) => (
-                            <option key={n} value={n}>{n}</option>
+                            <option key={n} value={n}>{n} {n === 1 ? 'row' : 'rows'}</option>
                           ))}
                         </select>
                       </label>
@@ -441,7 +463,7 @@ export function AdminReportPage() {
                     className="admin-widget__remove"
                     onClick={() => removeWidget(widget.id)}
                     type="button"
-                    title="Удалить виджет"
+                    title="Remove widget"
                   >
                     ×
                   </button>
@@ -454,21 +476,20 @@ export function AdminReportPage() {
           <div className="admin-filters">
             <div className="admin-main__top">
               <h2 className="admin-main__title">
-                Кастомные фильтры
+                Custom filters
                 <span style={{ fontWeight: 400, color: '#98a2b3', marginLeft: 8 }}>
-                  (кнопки-слайсеры)
+                  (button slicers)
                 </span>
               </h2>
               <button className="btn btn--secondary btn--sm" onClick={addFilterControl} type="button">
-                + Фильтр
+                + Filter
               </button>
             </div>
 
             {(config.filterControls ?? []).length === 0 ? (
               <p className="admin-sidebar__empty" style={{ padding: '8px 0' }}>
-                Кнопки, применяющие фильтр (In / NotIn) по выбранному полю ко всем визуалам сразу.
-                Например: «Avion Express Malta» и «Все, кроме Avion Express Malta» по полю
-                Cirium DB[Airline Name].
+                Buttons that apply an In / NotIn filter on a chosen field to every visual at once —
+                e.g. “Avion Express Malta” and “All except Avion Express Malta” on Cirium DB[Airline Name].
               </p>
             ) : (
               <div className="admin-widgets">
@@ -480,9 +501,9 @@ export function AdminReportPage() {
                           className="admin-widget__title-input"
                           value={control.title}
                           onChange={(e) => updateFilterControl(control.id, { title: e.target.value })}
-                          placeholder="Заголовок (необязательно)"
+                          placeholder="Title (optional)"
                         />
-                        <label className="admin-widget__size-label" title="Снимать фильтр повторным кликом">
+                        <label className="admin-widget__size-label" title="Click the active button again to clear the filter">
                           <input
                             type="checkbox"
                             checked={control.allowToggleOff}
@@ -498,13 +519,13 @@ export function AdminReportPage() {
                           className="admin-widget__title-input"
                           value={control.table}
                           onChange={(e) => updateFilterControl(control.id, { table: e.target.value })}
-                          placeholder="Таблица, напр. Cirium DB"
+                          placeholder="Table, e.g. Cirium DB"
                         />
                         <input
                           className="admin-widget__title-input"
                           value={control.column}
                           onChange={(e) => updateFilterControl(control.id, { column: e.target.value })}
-                          placeholder="Колонка, напр. Airline Name"
+                          placeholder="Column, e.g. Airline Name"
                         />
                       </div>
 
@@ -514,7 +535,7 @@ export function AdminReportPage() {
                             className="admin-widget__title-input"
                             value={btn.label}
                             onChange={(e) => updateFilterButton(control.id, i, { label: e.target.value })}
-                            placeholder="Текст кнопки"
+                            placeholder="Button label"
                           />
                           <select
                             value={btn.operator}
@@ -538,13 +559,13 @@ export function AdminReportPage() {
                                   .filter(Boolean),
                               })
                             }
-                            placeholder="Значения через запятую"
+                            placeholder="Values, comma-separated"
                           />
                           <button
                             className="admin-widget__remove"
                             onClick={() => removeFilterButton(control.id, i)}
                             type="button"
-                            title="Удалить кнопку"
+                            title="Remove button"
                           >
                             ×
                           </button>
@@ -557,7 +578,7 @@ export function AdminReportPage() {
                         type="button"
                         style={{ alignSelf: 'flex-start' }}
                       >
-                        + Кнопка
+                        + Button
                       </button>
                     </div>
 
@@ -565,7 +586,7 @@ export function AdminReportPage() {
                       className="admin-widget__remove"
                       onClick={() => removeFilterControl(control.id)}
                       type="button"
-                      title="Удалить фильтр"
+                      title="Remove filter"
                     >
                       ×
                     </button>

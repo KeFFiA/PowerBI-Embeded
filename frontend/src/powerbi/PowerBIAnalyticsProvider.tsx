@@ -153,7 +153,7 @@ export function PowerBIAnalyticsProvider({ reportKey, children }: Props) {
     return (
       <div className="pbi-provider-loading">
         <div className="pbi-spinner" />
-        <span>Загрузка токена…</span>
+        <span>Loading token…</span>
       </div>
     );
   }

@@ -20,7 +20,7 @@ export function DashboardPage() {
         setConfig(cfg);
         setReport(reports.find((r) => r.key === key) ?? null);
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Ошибка загрузки'))
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
   }, [key, navigate]);
 
@@ -33,7 +33,7 @@ export function DashboardPage() {
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
             <path d="M11.25 13.5L6.75 9L11.25 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          Все отчёты
+          All reports
         </button>
         {report && <span className="report-header__name">{report.name}</span>}
         <div className="dashboard-header-actions">
@@ -42,14 +42,14 @@ export function DashboardPage() {
             onClick={() => navigate(`/report/${key}`, { state: { name: report?.name } })}
             type="button"
           >
-            Полный отчёт
+            Full report
           </button>
           <button
             className="btn btn--secondary"
             onClick={() => navigate(`/admin/${key}`)}
             type="button"
           >
-            Настройки
+            Settings
           </button>
         </div>
       </header>
@@ -58,7 +58,7 @@ export function DashboardPage() {
         {loading && (
           <div className="pbi-provider-loading">
             <div className="pbi-spinner" />
-            <span>Загрузка…</span>
+            <span>Loading…</span>
           </div>
         )}
 
@@ -68,9 +68,9 @@ export function DashboardPage() {
 
         {!loading && !error && config && config.widgets.length === 0 && (
           <div className="dashboard-empty">
-            <p>Дашборд ещё не настроен.</p>
+            <p>This dashboard isn’t set up yet.</p>
             <button onClick={() => navigate(`/admin/${key}`)} type="button">
-              Перейти в настройки →
+              Go to settings →
             </button>
           </div>
         )}

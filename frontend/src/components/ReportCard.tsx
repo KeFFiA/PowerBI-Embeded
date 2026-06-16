@@ -21,8 +21,8 @@ export function ReportCard({ report, onClick, onDashboardClick }: ReportCardProp
         <span className="report-card__name">{report.name}</span>
         <span className="report-card__meta">
           {report.pages.length > 0
-            ? `${report.pages.length} ${pluralPages(report.pages.length)}`
-            : 'Все страницы'}
+            ? `${report.pages.length} ${report.pages.length === 1 ? 'page' : 'pages'}`
+            : 'All pages'}
           {report.rlsEnabled && ' · RLS'}
         </span>
       </div>
@@ -31,25 +31,19 @@ export function ReportCard({ report, onClick, onDashboardClick }: ReportCardProp
           className="btn btn--secondary btn--sm"
           onClick={(e) => { e.stopPropagation(); onDashboardClick(); }}
           type="button"
-          title="Открыть как дашборд с отдельными визуалами"
+          title="Open as a dashboard of separate widgets"
         >
-          Дашборд
+          Dashboard
         </button>
         <button
           className="btn btn--primary btn--sm"
           onClick={(e) => { e.stopPropagation(); onClick(); }}
           type="button"
-          title="Открыть полный отчёт"
+          title="Open the full report"
         >
-          Отчёт
+          Report
         </button>
       </div>
     </div>
   );
-}
-
-function pluralPages(n: number): string {
-  if (n % 10 === 1 && n % 100 !== 11) return 'страница';
-  if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) return 'страницы';
-  return 'страниц';
 }
