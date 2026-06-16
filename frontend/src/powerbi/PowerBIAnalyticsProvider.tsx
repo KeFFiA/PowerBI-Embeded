@@ -87,8 +87,10 @@ export function PowerBIAnalyticsProvider({ reportKey, children }: Props) {
       for (const [sourceId, filters] of sourcesRef.current) {
         if (sourceId === id) continue;
         for (const f of filters) {
-          const t = (f as unknown as { target?: Record<string, unknown> }).target ?? {};
-          const sig = JSON.stringify([t.table, t.column, t.hierarchy, t.hierarchyLevel, t.measure]);
+          // Key by the whole target (a string/column for Basic, an array of
+          // levels for hierarchy filters) so different fields stay distinct and
+          // only true same-target duplicates collapse.
+          const sig = JSON.stringify((f as unknown as { target?: unknown }).target ?? null);
           bySignature.set(sig, f);
         }
       }
