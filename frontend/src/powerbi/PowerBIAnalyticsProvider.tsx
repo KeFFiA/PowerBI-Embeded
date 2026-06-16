@@ -78,6 +78,7 @@ export function PowerBIAnalyticsProvider({ reportKey, children }: Props) {
   const applyMergedFilters = useCallback(() => {
     for (const [id, reg] of embedsRef.current) {
       if (reg.type === 'slicer') continue;
+      if (!reg.ready) continue; // not loaded yet — setFilters would reject
 
       // Power BI rejects two filters on the same target at a given level, so we
       // dedupe by target — the most recently published source wins (publish

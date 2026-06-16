@@ -56,10 +56,14 @@ export function useVisualEmbed(widget: Pick<WidgetConfig, 'id' | 'pageName' | 'v
     powerbiService.reset(container);
     const embed = powerbiService.embed(container, embedConfig) as Embed;
 
+    const registration = { id, embed, type, ready: false };
+
     embed.on('rendered', () => {
       setStatus('rendered');
-      // Adopt any filters that were already active before this embed finished
-      // loading (e.g. after a token-refresh remount with a filter button on).
+      // Mark ready so the merge will now target this embed, and adopt any
+      // filters that were already active before it finished loading (e.g. after
+      // a token-refresh remount with a filter button on).
+      registration.ready = true;
       if (type === 'visual') reapplyFilters();
     });
 
@@ -119,7 +123,7 @@ export function useVisualEmbed(widget: Pick<WidgetConfig, 'id' | 'pageName' | 'v
       publishFilters(id, filters);
     });
 
-    registerEmbed({ id, embed, type });
+    registerEmbed(registration);
 
     return () => {
       unregisterEmbed(id);

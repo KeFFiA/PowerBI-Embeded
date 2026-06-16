@@ -6,6 +6,9 @@ export interface EmbedRegistration {
   id: string;
   embed: Embed;
   type: 'visual' | 'slicer';
+  /** Set true once the embed fires `rendered`. setFilters before that throws
+   * `explorationContainerNotReady`, so the merge skips unready embeds. */
+  ready?: boolean;
 }
 
 export interface PowerBIContextValue {
