@@ -78,18 +78,29 @@ export function PowerBIAnalyticsProvider({ reportKey, children }: Props) {
   const applyMergedFilters = useCallback(() => {
     for (const [id, reg] of embedsRef.current) {
       if (reg.type === 'slicer') continue;
-      const merged: models.IFilter[] = [];
+
+      // Power BI rejects two filters on the same target at a given level, so we
+      // dedupe by target — the most recently published source wins (publish
+      // re-inserts at the end of the Map). Without this, a slicer + a bar click
+      // on the same column would make the whole setFilters call reject.
+      const bySignature = new Map<string, models.IFilter>();
       for (const [sourceId, filters] of sourcesRef.current) {
         if (sourceId === id) continue;
-        merged.push(...filters);
+        for (const f of filters) {
+          const t = (f as unknown as { target?: Record<string, unknown> }).target ?? {};
+          const sig = JSON.stringify([t.table, t.column, t.hierarchy, t.hierarchyLevel, t.measure]);
+          bySignature.set(sig, f);
+        }
       }
+      const merged = Array.from(bySignature.values());
+
       try {
         const result = (reg.embed as unknown as { setFilters: (f: unknown[]) => Promise<void> }).setFilters(merged);
         if (result && typeof (result as Promise<void>).catch === 'function') {
           (result as Promise<void>).catch((err) => {
             if (import.meta.env.DEV || (typeof localStorage !== 'undefined' && localStorage.getItem('pbiFilterDebug') === '1')) {
               // eslint-disable-next-line no-console
-              console.debug('[filterSync] setFilters rejected', { target: id, merged, err });
+              console.info('[filterSync] setFilters rejected', { target: id, merged, err });
             }
           });
         }
@@ -116,9 +127,10 @@ export function PowerBIAnalyticsProvider({ reportKey, children }: Props) {
 
   const publishFilters = useCallback(
     (sourceId: string, filters: models.IFilter[]) => {
-      if (!filters || filters.length === 0) {
-        sourcesRef.current.delete(sourceId);
-      } else {
+      // Delete-then-set so an updated source moves to the end of the Map; the
+      // dedupe in applyMergedFilters lets the most recent source win per target.
+      sourcesRef.current.delete(sourceId);
+      if (filters && filters.length > 0) {
         sourcesRef.current.set(sourceId, filters);
       }
       applyMergedFilters();

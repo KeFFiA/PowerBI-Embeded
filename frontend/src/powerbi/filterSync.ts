@@ -35,31 +35,34 @@ export function buildFiltersFromDataPoints(rawDataPoints: unknown): models.IBasi
 }
 
 /**
- * Normalises whatever `getSlicerState()` returns into filters that are safe to
- * pass to `setFilters` on sibling visuals. Dropdown/list slicers return Basic
- * filters ({ target:{table,column}, operator, values }); we rebuild those as
- * clean Basic filters. Other well-formed filters (advanced / relative date /
- * hierarchy) are passed through. Anything we can't recognise is dropped so it
- * can never poison the merged filter array applied to other visuals.
+ * Normalises whatever `getSlicerState()` returns into clean Basic filters that
+ * are always safe to pass to `setFilters` on sibling visuals. We ONLY emit
+ * rebuilt Basic In/NotIn filters with primitive values, and drop anything else
+ * (advanced/date/hierarchy filters, object-valued entries, missing target).
+ * Dropping unknowns means a slicer can never publish a filter that makes a
+ * sibling's whole `setFilters` call reject — at worst it falls back to the
+ * clicked-point behaviour. Dropdown/list slicers (the case here) always yield
+ * Basic In filters, so this is lossless for them.
  */
-export function normalizeSlicerFilters(raw: unknown): models.IFilter[] {
+export function normalizeSlicerFilters(raw: unknown): models.IBasicFilter[] {
   if (!Array.isArray(raw)) return [];
-  const out: models.IFilter[] = [];
+  const out: models.IBasicFilter[] = [];
 
   for (const entry of raw) {
     const f = entry as Record<string, unknown>;
     const target = f?.target as Record<string, unknown> | undefined;
     const table = target?.table as string | undefined;
     const column = target?.column as string | undefined;
-    const values = f?.values;
+    if (!table || !column || !Array.isArray(f?.values)) continue;
 
-    if (table && column && Array.isArray(values)) {
-      const operator = f.operator === 'NotIn' ? 'NotIn' : 'In';
-      out.push(buildBasicFilter(table, column, operator, values as Array<string | number | boolean>));
-    } else if (f && typeof f.$schema === 'string' && f.target) {
-      // Well-formed non-basic filter (advanced / relative-date / hierarchy).
-      out.push(f as unknown as models.IFilter);
-    }
+    const values = (f.values as unknown[]).filter(
+      (v): v is string | number | boolean =>
+        typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean',
+    );
+    if (values.length === 0) continue;
+
+    const operator = f.operator === 'NotIn' ? 'NotIn' : 'In';
+    out.push(buildBasicFilter(table, column, operator, values));
   }
 
   return out;

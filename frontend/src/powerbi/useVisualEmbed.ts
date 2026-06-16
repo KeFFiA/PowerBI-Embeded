@@ -41,16 +41,15 @@ export function useVisualEmbed(widget: Pick<WidgetConfig, 'id' | 'pageName' | 'v
       visualName,
       settings: {
         background: models.BackgroundType.Transparent,
-        // Hide ONLY the drill-related header buttons (drill up/down/mode and
-        // expand-to-next-level), leaving sort/focus intact. Kept minimal: a
-        // single invalid command key makes Power BI ignore the whole `commands`
-        // setting, so we list only the two we are sure about.
-        commands: [
-          {
-            drill: { displayOption: models.CommandDisplayOption.Hidden },
-            expandCollapse: { displayOption: models.CommandDisplayOption.Hidden },
-          },
-        ],
+        // `commands` does NOT govern the single-visual header toolbar, and
+        // IVisualHeaderSettings only exposes `visible` (no per-button control).
+        // So the only way to remove the drill/focus buttons is to hide the
+        // whole header. Slicers keep their header (it carries no drill buttons
+        // and is visually unobtrusive).
+        visualSettings:
+          type === 'slicer'
+            ? undefined
+            : { visualHeaders: [{ settings: { visible: false } }] },
       },
     } as models.IEmbedConfiguration;
 
@@ -80,7 +79,7 @@ export function useVisualEmbed(widget: Pick<WidgetConfig, 'id' | 'pageName' | 'v
       // running `localStorage.pbiFilterDebug = '1'` in the browser console.
       if (filterDebug()) {
         // eslint-disable-next-line no-console
-        console.debug('[filterSync] dataSelected', { widget: id, type, detail });
+        console.info('[filterSync] dataSelected', { widget: id, type, detail });
       }
 
       if (type === 'slicer') {
@@ -100,12 +99,12 @@ export function useVisualEmbed(widget: Pick<WidgetConfig, 'id' | 'pageName' | 'v
             filters = normalizeSlicerFilters(state?.filters);
             if (filterDebug()) {
               // eslint-disable-next-line no-console
-              console.debug('[filterSync] slicerState', { widget: id, rawState: state, normalized: filters });
+              console.info('[filterSync] slicerState', { widget: id, rawState: state, normalized: filters });
             }
           } catch (err) {
             if (filterDebug()) {
               // eslint-disable-next-line no-console
-              console.debug('[filterSync] getSlicerState failed', { widget: id, err });
+              console.info('[filterSync] getSlicerState failed', { widget: id, err });
             }
           }
           if (filters.length === 0) {
