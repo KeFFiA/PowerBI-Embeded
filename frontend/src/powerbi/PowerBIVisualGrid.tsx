@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 import type { DashboardConfig } from '../types/dashboard';
 import { PowerBIAnalyticsProvider } from './PowerBIAnalyticsProvider';
 import { PowerBIVisual } from './PowerBIVisual';
+import { FilterBar } from './FilterBar';
 
 interface Props {
   reportKey: string;
@@ -13,6 +14,7 @@ export function PowerBIVisualGrid({ reportKey, config }: Props) {
 
   return (
     <PowerBIAnalyticsProvider reportKey={reportKey}>
+      <FilterBar controls={config.filterControls ?? []} />
       <div
         className="visual-grid"
         style={{ '--grid-cols': config.gridColumns } as CSSProperties}

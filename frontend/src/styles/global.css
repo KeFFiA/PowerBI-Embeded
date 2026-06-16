@@ -391,6 +391,74 @@ body {
   font-family: inherit;
 }
 
+/* ── Admin: custom filter controls ── */
+
+.admin-filters {
+  margin-top: 28px;
+  border-top: 1px solid #e6e8ec;
+  padding-top: 12px;
+}
+
+.admin-filter-btn-row {
+  gap: 8px;
+  align-items: center;
+}
+
+.admin-filter-btn-row select {
+  flex: 0 0 auto;
+}
+
+/* ── Filter bar (custom slicers) ── */
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 28px;
+  padding: 14px 16px 0;
+}
+
+.filter-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.filter-control__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475467;
+}
+
+.filter-control__buttons {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-chip {
+  border: 1px solid #d0d5dd;
+  background: #ffffff;
+  color: #344054;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.filter-chip:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.filter-chip--active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
 /* ── Visual grid ── */
 
 .visual-grid {

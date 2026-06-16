@@ -7,7 +7,12 @@ import {
   type ReportSummary,
 } from '../api/embed';
 import { useReportDiscover } from '../powerbi/useReportDiscover';
-import type { DashboardConfig, WidgetConfig } from '../types/dashboard';
+import type {
+  DashboardConfig,
+  FilterButtonConfig,
+  FilterControlConfig,
+  WidgetConfig,
+} from '../types/dashboard';
 
 const GRID_COL_OPTIONS = [2, 3, 4, 6];
 const COL_SPAN_OPTIONS = [1, 2, 3, 4, 6];
@@ -99,6 +104,87 @@ export function AdminReportPage() {
       [sorted[idx], sorted[swap]] = [sorted[swap], sorted[idx]];
       return { ...prev, widgets: sorted.map((w, i) => ({ ...w, order: i })) };
     });
+  }, []);
+
+  // ── Custom filter controls (button slicers) ──
+
+  const addFilterControl = useCallback(() => {
+    const id = generateId();
+    setConfig((prev) => {
+      if (!prev) return prev;
+      const control: FilterControlConfig = {
+        id,
+        title: 'Новый фильтр',
+        table: '',
+        column: '',
+        allowToggleOff: true,
+        buttons: [],
+      };
+      return { ...prev, filterControls: [...(prev.filterControls ?? []), control] };
+    });
+  }, []);
+
+  const removeFilterControl = useCallback((id: string) => {
+    setConfig((prev) =>
+      prev ? { ...prev, filterControls: (prev.filterControls ?? []).filter((c) => c.id !== id) } : prev,
+    );
+  }, []);
+
+  const updateFilterControl = useCallback((id: string, patch: Partial<FilterControlConfig>) => {
+    setConfig((prev) =>
+      prev
+        ? {
+            ...prev,
+            filterControls: (prev.filterControls ?? []).map((c) =>
+              c.id === id ? { ...c, ...patch } : c,
+            ),
+          }
+        : prev,
+    );
+  }, []);
+
+  const addFilterButton = useCallback((controlId: string) => {
+    setConfig((prev) => {
+      if (!prev) return prev;
+      const button: FilterButtonConfig = { label: 'Кнопка', operator: 'In', values: [] };
+      return {
+        ...prev,
+        filterControls: (prev.filterControls ?? []).map((c) =>
+          c.id === controlId ? { ...c, buttons: [...c.buttons, button] } : c,
+        ),
+      };
+    });
+  }, []);
+
+  const updateFilterButton = useCallback(
+    (controlId: string, index: number, patch: Partial<FilterButtonConfig>) => {
+      setConfig((prev) =>
+        prev
+          ? {
+              ...prev,
+              filterControls: (prev.filterControls ?? []).map((c) =>
+                c.id === controlId
+                  ? { ...c, buttons: c.buttons.map((b, i) => (i === index ? { ...b, ...patch } : b)) }
+                  : c,
+              ),
+            }
+          : prev,
+      );
+    },
+    [],
+  );
+
+  const removeFilterButton = useCallback((controlId: string, index: number) => {
+    setConfig((prev) =>
+      prev
+        ? {
+            ...prev,
+            filterControls: (prev.filterControls ?? []).map((c) =>
+              c.id === controlId ? { ...c, buttons: c.buttons.filter((_, i) => i !== index) } : c,
+            ),
+          }
+        : prev,
+    );
   }, []);
 
   const handleSave = useCallback(async () => {
@@ -363,6 +449,131 @@ export function AdminReportPage() {
               ))}
             </div>
           )}
+
+          {/* ── Custom filter controls (button slicers) ── */}
+          <div className="admin-filters">
+            <div className="admin-main__top">
+              <h2 className="admin-main__title">
+                Кастомные фильтры
+                <span style={{ fontWeight: 400, color: '#98a2b3', marginLeft: 8 }}>
+                  (кнопки-слайсеры)
+                </span>
+              </h2>
+              <button className="btn btn--secondary btn--sm" onClick={addFilterControl} type="button">
+                + Фильтр
+              </button>
+            </div>
+
+            {(config.filterControls ?? []).length === 0 ? (
+              <p className="admin-sidebar__empty" style={{ padding: '8px 0' }}>
+                Кнопки, применяющие фильтр (In / NotIn) по выбранному полю ко всем визуалам сразу.
+                Например: «Avion Express Malta» и «Все, кроме Avion Express Malta» по полю
+                Cirium DB[Airline Name].
+              </p>
+            ) : (
+              <div className="admin-widgets">
+                {(config.filterControls ?? []).map((control) => (
+                  <div key={control.id} className="admin-widget admin-widget--filter">
+                    <div className="admin-widget__body">
+                      <div className="admin-widget__row">
+                        <input
+                          className="admin-widget__title-input"
+                          value={control.title}
+                          onChange={(e) => updateFilterControl(control.id, { title: e.target.value })}
+                          placeholder="Заголовок (необязательно)"
+                        />
+                        <label className="admin-widget__size-label" title="Снимать фильтр повторным кликом">
+                          <input
+                            type="checkbox"
+                            checked={control.allowToggleOff}
+                            onChange={(e) =>
+                              updateFilterControl(control.id, { allowToggleOff: e.target.checked })
+                            }
+                          />
+                          Toggle
+                        </label>
+                      </div>
+                      <div className="admin-widget__row">
+                        <input
+                          className="admin-widget__title-input"
+                          value={control.table}
+                          onChange={(e) => updateFilterControl(control.id, { table: e.target.value })}
+                          placeholder="Таблица, напр. Cirium DB"
+                        />
+                        <input
+                          className="admin-widget__title-input"
+                          value={control.column}
+                          onChange={(e) => updateFilterControl(control.id, { column: e.target.value })}
+                          placeholder="Колонка, напр. Airline Name"
+                        />
+                      </div>
+
+                      {control.buttons.map((btn, i) => (
+                        <div key={i} className="admin-widget__row admin-filter-btn-row">
+                          <input
+                            className="admin-widget__title-input"
+                            value={btn.label}
+                            onChange={(e) => updateFilterButton(control.id, i, { label: e.target.value })}
+                            placeholder="Текст кнопки"
+                          />
+                          <select
+                            value={btn.operator}
+                            onChange={(e) =>
+                              updateFilterButton(control.id, i, {
+                                operator: e.target.value as 'In' | 'NotIn',
+                              })
+                            }
+                          >
+                            <option value="In">In</option>
+                            <option value="NotIn">NotIn</option>
+                          </select>
+                          <input
+                            className="admin-widget__title-input"
+                            value={btn.values.join(', ')}
+                            onChange={(e) =>
+                              updateFilterButton(control.id, i, {
+                                values: e.target.value
+                                  .split(',')
+                                  .map((v) => v.trim())
+                                  .filter(Boolean),
+                              })
+                            }
+                            placeholder="Значения через запятую"
+                          />
+                          <button
+                            className="admin-widget__remove"
+                            onClick={() => removeFilterButton(control.id, i)}
+                            type="button"
+                            title="Удалить кнопку"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+
+                      <button
+                        className="btn btn--ghost btn--sm"
+                        onClick={() => addFilterButton(control.id)}
+                        type="button"
+                        style={{ alignSelf: 'flex-start' }}
+                      >
+                        + Кнопка
+                      </button>
+                    </div>
+
+                    <button
+                      className="admin-widget__remove"
+                      onClick={() => removeFilterControl(control.id)}
+                      type="button"
+                      title="Удалить фильтр"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </main>
       </div>
     </div>

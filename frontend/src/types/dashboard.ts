@@ -9,10 +9,26 @@ export interface WidgetConfig {
   order: number;
 }
 
+export interface FilterButtonConfig {
+  label: string;
+  operator: 'In' | 'NotIn';
+  values: Array<string | number | boolean>;
+}
+
+export interface FilterControlConfig {
+  id: string;
+  title: string;
+  table: string;
+  column: string;
+  allowToggleOff: boolean;
+  buttons: FilterButtonConfig[];
+}
+
 export interface DashboardConfig {
   reportKey: string;
   gridColumns: number;
   widgets: WidgetConfig[];
+  filterControls?: FilterControlConfig[];
   updatedAt?: string;
 }
 

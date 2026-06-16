@@ -23,10 +23,32 @@ export const widgetConfigSchema = z.object({
   order: z.number().int().min(0),
 });
 
+// A single button inside a filter control. Applies a Basic filter on the
+// control's table/column when toggled on.
+export const filterButtonSchema = z.object({
+  label: z.string().min(1),
+  operator: z.enum(['In', 'NotIn']).default('In'),
+  // Accept strings/numbers/booleans — Power BI Basic filters allow all three.
+  values: z.array(z.union([z.string(), z.number(), z.boolean()])).default([]),
+});
+
+// A configurable "custom slicer": a row of buttons that each apply a Basic
+// filter (In/NotIn) on a chosen table[column] to every value visual at once.
+export const filterControlSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().default(''),
+  table: z.string().min(1),
+  column: z.string().min(1),
+  // Allow clearing the active button by clicking it again (toggle behaviour).
+  allowToggleOff: z.boolean().default(true),
+  buttons: z.array(filterButtonSchema).default([]),
+});
+
 export const dashboardConfigSchema = z.object({
   reportKey: z.string().min(1),
   gridColumns: z.number().int().min(1).max(12).default(3),
   widgets: z.array(widgetConfigSchema).default([]),
+  filterControls: z.array(filterControlSchema).default([]),
   updatedAt: z.string().optional(),
 });
 

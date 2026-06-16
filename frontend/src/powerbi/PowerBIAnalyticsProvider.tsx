@@ -21,6 +21,10 @@ export function PowerBIAnalyticsProvider({ reportKey, children }: Props) {
   const [config, setConfig] = useState<EmbedConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
   const embedsRef = useRef<Map<string, EmbedRegistration>>(new Map());
+  // Each source (a visual's selection, a slicer's state, or a custom
+  // filter-control button) contributes a slice of filters. The union of all
+  // active sources is applied to every value visual.
+  const sourcesRef = useRef<Map<string, models.IFilter[]>>(new Map());
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -68,25 +72,51 @@ export function PowerBIAnalyticsProvider({ reportKey, children }: Props) {
     };
   }, [reportKey]);
 
-  const registerEmbed = useCallback((reg: EmbedRegistration) => {
-    embedsRef.current.set(reg.id, reg);
-  }, []);
-
-  const unregisterEmbed = useCallback((id: string) => {
-    embedsRef.current.delete(id);
-  }, []);
-
-  const broadcastSelection = useCallback((sourceId: string, filters: models.IBasicFilter[]) => {
+  // Re-apply the merged filter set to every value visual. A visual is never
+  // filtered by its own contribution (so selecting a bar highlights it rather
+  // than emptying its own chart); slicers are never filter targets.
+  const applyMergedFilters = useCallback(() => {
     for (const [id, reg] of embedsRef.current) {
-      if (id === sourceId) continue;
       if (reg.type === 'slicer') continue;
+      const merged: models.IFilter[] = [];
+      for (const [sourceId, filters] of sourcesRef.current) {
+        if (sourceId === id) continue;
+        merged.push(...filters);
+      }
       try {
-        void (reg.embed as unknown as { setFilters: (f: unknown[]) => void }).setFilters(filters);
+        void (reg.embed as unknown as { setFilters: (f: unknown[]) => void }).setFilters(merged);
       } catch {
         // embed may have been unmounted
       }
     }
   }, []);
+
+  const registerEmbed = useCallback(
+    (reg: EmbedRegistration) => {
+      embedsRef.current.set(reg.id, reg);
+      // A newly mounted visual must pick up filters already active from other
+      // sources (e.g. a custom filter button toggled before it rendered).
+      applyMergedFilters();
+    },
+    [applyMergedFilters],
+  );
+
+  const unregisterEmbed = useCallback((id: string) => {
+    embedsRef.current.delete(id);
+    sourcesRef.current.delete(id);
+  }, []);
+
+  const publishFilters = useCallback(
+    (sourceId: string, filters: models.IFilter[]) => {
+      if (!filters || filters.length === 0) {
+        sourcesRef.current.delete(sourceId);
+      } else {
+        sourcesRef.current.set(sourceId, filters);
+      }
+      applyMergedFilters();
+    },
+    [applyMergedFilters],
+  );
 
   if (error) {
     return (
@@ -111,7 +141,8 @@ export function PowerBIAnalyticsProvider({ reportKey, children }: Props) {
     reportId: config.reportId,
     registerEmbed,
     unregisterEmbed,
-    broadcastSelection,
+    publishFilters,
+    reapplyFilters: applyMergedFilters,
   };
 
   return <PowerBIContext.Provider value={value}>{children}</PowerBIContext.Provider>;

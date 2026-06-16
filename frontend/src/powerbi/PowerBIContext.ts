@@ -14,7 +14,17 @@ export interface PowerBIContextValue {
   reportId: string;
   registerEmbed: (reg: EmbedRegistration) => void;
   unregisterEmbed: (id: string) => void;
-  broadcastSelection: (sourceId: string, filters: models.IBasicFilter[]) => void;
+  /**
+   * Publishes the set of filters contributed by one source (a visual's click
+   * selection, a slicer's state, or a custom filter-control button). The
+   * provider merges all active sources and applies the union to every value
+   * visual. Pass an empty array to retract this source's contribution.
+   */
+  publishFilters: (sourceId: string, filters: models.IFilter[]) => void;
+  /** Re-applies the current merged filter set to all value visuals. Call after
+   * an embed finishes rendering so a freshly (re)mounted visual adopts filters
+   * that were already active. */
+  reapplyFilters: () => void;
 }
 
 export const PowerBIContext = createContext<PowerBIContextValue | null>(null);

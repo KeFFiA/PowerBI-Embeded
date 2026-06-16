@@ -29,11 +29,23 @@ export function buildFiltersFromDataPoints(rawDataPoints: unknown): models.IBasi
     }
   }
 
-  return Array.from(byTarget.values()).map(({ target, values }) => ({
+  return Array.from(byTarget.values()).map(({ target, values }) =>
+    buildBasicFilter(target.table, target.column, 'In', values),
+  );
+}
+
+/** Builds a single Basic ("In"/"NotIn") filter for a table[column]. */
+export function buildBasicFilter(
+  table: string,
+  column: string,
+  operator: 'In' | 'NotIn',
+  values: Array<string | number | boolean>,
+): models.IBasicFilter {
+  return {
     $schema: 'http://powerbi.com/product/schema#basic',
-    target,
-    operator: 'In' as models.BasicFilterOperators,
+    target: { table, column },
+    operator: operator as models.BasicFilterOperators,
     values,
     filterType: models.FilterType.Basic,
-  }));
+  };
 }
