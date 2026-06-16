@@ -50,8 +50,13 @@ app.use(errorHandler);
 
 const server = app.listen(config.env.PORT, () => {
   logger.info(
-    { port: config.env.PORT, env: config.env.NODE_ENV, reports: config.allowlist.reports.length },
-    'Power BI embed backend started',
+    {
+      port: config.env.PORT,
+      env: config.env.NODE_ENV,
+      devMode: config.isDevMode,
+      reports: config.allowlist.reports.length,
+    },
+    config.isDevMode ? 'Power BI embed backend started [DEV MODE]' : 'Power BI embed backend started',
   );
 });
 

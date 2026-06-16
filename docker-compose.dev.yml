@@ -1,0 +1,18 @@
+# Dev-workspace overlay for docker-compose.
+#
+# Usage:
+#   cp backend/allowlist.dev.example.json backend/allowlist.dev.json  # fill in dev GUIDs
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#
+# This overlay activates DEV_MODE on the backend and mounts the dev allowlist.
+# Dev AAD credentials (DEV_AAD_*) are read from .env — add them there if the
+# dev workspace lives in a different tenant or uses a different app registration.
+# If not set, the overlay falls back to the production AAD credentials.
+
+services:
+  backend:
+    environment:
+      DEV_MODE: "true"
+      DEV_EMBED_ALLOWLIST_FILE: /run/config/allowlist.dev.json
+    volumes:
+      - ./backend/allowlist.dev.json:/run/config/allowlist.dev.json:ro

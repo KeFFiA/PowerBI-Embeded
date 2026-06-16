@@ -45,10 +45,22 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(4000),
   LOG_LEVEL: z.string().optional(),
 
-  // Microsoft Entra ID (service principal / app registration).
+  // Set to "true" to activate dev-workspace overrides (DEV_* variables below).
+  // When enabled, DEV_AAD_* and DEV_EMBED_ALLOWLIST* take precedence over the
+  // production values so you can point the server at a separate dev workspace
+  // without touching the prod allowlist or credentials.
+  DEV_MODE: z.coerce.boolean().default(false),
+
+  // Microsoft Entra ID (service principal / app registration) — production.
   AAD_TENANT_ID: z.string().min(1, 'AAD_TENANT_ID is required'),
   AAD_CLIENT_ID: z.string().min(1, 'AAD_CLIENT_ID is required'),
   AAD_CLIENT_SECRET: z.string().min(1, 'AAD_CLIENT_SECRET is required'),
+
+  // Dev-workspace AAD overrides (only used when DEV_MODE=true).
+  // Omit any of these to fall back to the production value above.
+  DEV_AAD_TENANT_ID: z.string().optional(),
+  DEV_AAD_CLIENT_ID: z.string().optional(),
+  DEV_AAD_CLIENT_SECRET: z.string().optional(),
 
   // Endpoints (overridable for sovereign clouds, e.g. US Gov / China).
   AAD_AUTHORITY_HOST: z.string().url().default('https://login.microsoftonline.com'),
@@ -61,9 +73,14 @@ const envSchema = z.object({
   // Embed token lifetime hint surfaced to the client (Power BI decides the real value).
   EMBED_ACCESS_LEVEL: z.enum(['View', 'Edit', 'Create']).default('View'),
 
-  // Allowlist source: provide EITHER inline JSON OR a file path.
+  // Allowlist source — production: provide EITHER inline JSON OR a file path.
   EMBED_ALLOWLIST: z.string().optional(),
   EMBED_ALLOWLIST_FILE: z.string().optional(),
+
+  // Allowlist source — dev overrides (only used when DEV_MODE=true).
+  // Omit to fall back to the production allowlist.
+  DEV_EMBED_ALLOWLIST: z.string().optional(),
+  DEV_EMBED_ALLOWLIST_FILE: z.string().optional(),
 
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
@@ -100,7 +117,23 @@ function loadConfig() {
     const issues = parsed.error.issues.map((i) => `  - ${i.path.join('.')}: ${i.message}`).join('\n');
     throw new Error(`Invalid environment configuration:\n${issues}`);
   }
-  const env = parsed.data;
+
+  const raw = parsed.data;
+
+  // When DEV_MODE is on, overlay the dev-specific values over the prod values so
+  // the rest of the codebase (auth.ts, powerbi.ts, …) always reads from config.env
+  // without needing to know about DEV_MODE themselves.
+  const env = raw.DEV_MODE
+    ? {
+        ...raw,
+        AAD_TENANT_ID: raw.DEV_AAD_TENANT_ID ?? raw.AAD_TENANT_ID,
+        AAD_CLIENT_ID: raw.DEV_AAD_CLIENT_ID ?? raw.AAD_CLIENT_ID,
+        AAD_CLIENT_SECRET: raw.DEV_AAD_CLIENT_SECRET ?? raw.AAD_CLIENT_SECRET,
+        EMBED_ALLOWLIST_FILE: raw.DEV_EMBED_ALLOWLIST_FILE ?? raw.EMBED_ALLOWLIST_FILE,
+        EMBED_ALLOWLIST: raw.DEV_EMBED_ALLOWLIST ?? raw.EMBED_ALLOWLIST,
+      }
+    : raw;
+
   const allowlist = loadAllowlist(env);
 
   return {
@@ -108,6 +141,7 @@ function loadConfig() {
     allowlist,
     corsOrigins: env.CORS_ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean),
     isProd: env.NODE_ENV === 'production',
+    isDevMode: raw.DEV_MODE,
   };
 }
 
