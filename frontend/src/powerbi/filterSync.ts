@@ -73,10 +73,9 @@ export function normalizeSlicerFilters(raw: unknown): models.IFilter[] {
       out.push(buildBasicFilter(t.table as string, t.column as string, operator, values));
     } else if (Array.isArray(target)) {
       // Hierarchy slicer (filterType 9): value visuals only have the leaf
-      // column, so a hierarchy filter is rejected. Flatten it to a Basic filter
-      // on the leaf column instead.
-      const basic = hierarchyFilterToBasic(f);
-      if (basic) out.push(basic);
+      // column, so a hierarchy filter is rejected. Flatten it to one Basic
+      // filter per level (group + leaf) instead.
+      out.push(...hierarchyFilterToBasics(f));
     }
     // Anything else (advanced / relative-date on a field the value visuals may
     // not have) is dropped to avoid poisoning the sibling setFilters call.
@@ -91,42 +90,66 @@ interface HierarchyNode {
   children?: HierarchyNode[];
 }
 
+type Primitive = string | number | boolean;
+const isPrimitive = (v: unknown): v is Primitive =>
+  typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean';
+
 /**
- * Flattens a hierarchy slicer's state to a Basic filter on the LEAF column
- * (e.g. Airline Name). Leaf nodes marked "NotSelected" become a `NotIn` filter
- * ("show all except the unchecked"); explicitly "Selected" leaves become `In`.
- * Group-level (non-leaf) selections can't be enumerated to leaf values on the
- * client, so they're ignored — the common per-item check/uncheck flow works.
+ * Flattens a hierarchy slicer's state into one Basic filter PER LEVEL so both
+ * group-level (e.g. ASG/Other) and leaf-level (Airline Name) selections
+ * propagate to value visuals (which only carry individual model columns, not
+ * the hierarchy itself).
+ *
+ * The state is a delta tree: only "touched" nodes appear; anything absent is
+ * inherited-selected. So at each level:
+ *  - "NotSelected" nodes are explicit exclusions → `NotIn[...]` on that column
+ *    (handles "select all, then uncheck some groups/items").
+ *  - "Selected" LEAF nodes are explicit inclusions used only when nothing at
+ *    that level was excluded → `In[...]` ("select only these").
+ *  - "Selected" non-leaf nodes are just containers for child exceptions and add
+ *    no constraint of their own.
+ * Exclusions win over inclusions at a level. Different levels target different
+ * columns, so the resulting Basic filters combine with AND on each visual.
  */
-function hierarchyFilterToBasic(f: Record<string, unknown>): models.IBasicFilter | null {
+function hierarchyFilterToBasics(f: Record<string, unknown>): models.IBasicFilter[] {
   const targets = f.target as Array<{ table?: string; column?: string }> | undefined;
-  if (!Array.isArray(targets) || targets.length === 0) return null;
-  const leaf = targets[targets.length - 1];
-  if (!leaf?.table || !leaf?.column) return null;
+  if (!Array.isArray(targets) || targets.length === 0) return [];
   const leafDepth = targets.length - 1;
 
-  const included: Array<string | number | boolean> = [];
-  const excluded: Array<string | number | boolean> = [];
+  const includedByDepth = new Map<number, Primitive[]>();
+  const excludedByDepth = new Map<number, Primitive[]>();
+  const add = (map: Map<number, Primitive[]>, depth: number, v: Primitive) => {
+    const arr = map.get(depth);
+    if (arr) arr.push(v);
+    else map.set(depth, [v]);
+  };
 
   const walk = (nodes: HierarchyNode[] | undefined, depth: number) => {
     if (!Array.isArray(nodes)) return;
     for (const node of nodes) {
       const v = node.value;
-      const isPrimitive = typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean';
-      if (depth === leafDepth && isPrimitive) {
-        if (node.operator === 'Selected') included.push(v as string | number | boolean);
-        else if (node.operator === 'NotSelected') excluded.push(v as string | number | boolean);
+      const hasChildren = Array.isArray(node.children) && node.children.length > 0;
+      if (isPrimitive(v)) {
+        if (node.operator === 'NotSelected') add(excludedByDepth, depth, v);
+        else if (node.operator === 'Selected' && depth === leafDepth && !hasChildren) {
+          add(includedByDepth, depth, v);
+        }
       }
       walk(node.children, depth + 1);
     }
   };
   walk(f.hierarchyData as HierarchyNode[] | undefined, 0);
 
-  // Prefer "all except the unchecked" when exclusions exist (the select-all →
-  // uncheck-some case); otherwise an explicit inclusion set.
-  if (excluded.length > 0) return buildBasicFilter(leaf.table, leaf.column, 'NotIn', excluded);
-  if (included.length > 0) return buildBasicFilter(leaf.table, leaf.column, 'In', included);
-  return null;
+  const out: models.IBasicFilter[] = [];
+  for (let depth = 0; depth < targets.length; depth++) {
+    const t = targets[depth];
+    if (!t?.table || !t?.column) continue;
+    const excluded = excludedByDepth.get(depth) ?? [];
+    const included = includedByDepth.get(depth) ?? [];
+    if (excluded.length > 0) out.push(buildBasicFilter(t.table, t.column, 'NotIn', excluded));
+    else if (included.length > 0) out.push(buildBasicFilter(t.table, t.column, 'In', included));
+  }
+  return out;
 }
 
 /** Builds a single Basic ("In"/"NotIn") filter for a table[column]. */
