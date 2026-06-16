@@ -3,14 +3,13 @@ import { models } from 'powerbi-client';
 import type { Embed } from 'powerbi-client';
 import { powerbiService } from './service';
 import { usePowerBI } from './PowerBIContext';
-import { buildFiltersFromDataPoints } from './filterSync';
+import { buildFiltersFromDataPoints, normalizeSlicerFilters } from './filterSync';
 import type { WidgetConfig } from '../types/dashboard';
 
 type VisualStatus = 'loading' | 'rendered' | 'error';
 
-// Hides a visual-header command (drill, focus mode, export, …) so only the
-// sort control remains. See embed `settings.commands` below.
-const HIDE_COMMAND = { displayOption: models.CommandDisplayOption.Hidden } as const;
+const filterDebug = () =>
+  import.meta.env.DEV || (typeof localStorage !== 'undefined' && localStorage.getItem('pbiFilterDebug') === '1');
 
 export function useVisualEmbed(widget: Pick<WidgetConfig, 'id' | 'pageName' | 'visualName' | 'type'>) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -42,29 +41,14 @@ export function useVisualEmbed(widget: Pick<WidgetConfig, 'id' | 'pageName' | 'v
       visualName,
       settings: {
         background: models.BackgroundType.Transparent,
-        // Strip the visual header down to just the sort control. Everything
-        // else (drill, focus mode, "see data", export, spotlight, …) is hidden.
-        // Hiding drill also means a click always cross-filters instead of being
-        // swallowed by drill-down navigation.
+        // Hide ONLY the drill-related header buttons (drill up/down/mode and
+        // expand-to-next-level), leaving sort/focus intact. Kept minimal: a
+        // single invalid command key makes Power BI ignore the whole `commands`
+        // setting, so we list only the two we are sure about.
         commands: [
           {
-            copy: HIDE_COMMAND,
-            drill: HIDE_COMMAND,
-            drillthrough: HIDE_COMMAND,
-            expandCollapse: HIDE_COMMAND,
-            exportData: HIDE_COMMAND,
-            includeExclude: HIDE_COMMAND,
-            removeVisual: HIDE_COMMAND,
-            search: HIDE_COMMAND,
-            seeData: HIDE_COMMAND,
-            spotlight: HIDE_COMMAND,
-            insightsAnalysis: HIDE_COMMAND,
-            addComment: HIDE_COMMAND,
-            groupVisualContainers: HIDE_COMMAND,
-            summarize: HIDE_COMMAND,
-            clearSelection: HIDE_COMMAND,
-            focusMode: HIDE_COMMAND,
-            visualCalculation: HIDE_COMMAND,
+            drill: { displayOption: models.CommandDisplayOption.Hidden },
+            expandCollapse: { displayOption: models.CommandDisplayOption.Hidden },
           },
         ],
       },
@@ -94,7 +78,7 @@ export function useVisualEmbed(widget: Pick<WidgetConfig, 'id' | 'pageName' | 'v
       // payload confirms what fires and reveals the field table/column for
       // configuring custom filter controls. Enabled in dev, or in any build by
       // running `localStorage.pbiFilterDebug = '1'` in the browser console.
-      if (import.meta.env.DEV || localStorage.getItem('pbiFilterDebug') === '1') {
+      if (filterDebug()) {
         // eslint-disable-next-line no-console
         console.debug('[filterSync] dataSelected', { widget: id, type, detail });
       }
@@ -102,17 +86,32 @@ export function useVisualEmbed(widget: Pick<WidgetConfig, 'id' | 'pageName' | 'v
       if (type === 'slicer') {
         // A slicer must broadcast its *cumulative* state, not just the clicked
         // points — otherwise multi-select / deselect / "select all" all break.
+        // We read getSlicerState() and normalise it to plain Basic filters; if
+        // that yields nothing usable we fall back to the clicked data points so
+        // a slicer never filters *worse* than before.
         void (async () => {
+          let filters: models.IFilter[] = [];
           try {
             const visual = embed as unknown as {
-              getVisualDescriptor: () => Promise<{ getSlicerState: () => Promise<{ filters: models.IFilter[] }> }>;
+              getVisualDescriptor: () => Promise<{ getSlicerState: () => Promise<{ filters?: unknown }> }>;
             };
             const descriptor = await visual.getVisualDescriptor();
             const state = await descriptor.getSlicerState();
-            publishFilters(id, state.filters ?? []);
-          } catch {
-            // descriptor unavailable (embed unmounted) — ignore
+            filters = normalizeSlicerFilters(state?.filters);
+            if (filterDebug()) {
+              // eslint-disable-next-line no-console
+              console.debug('[filterSync] slicerState', { widget: id, rawState: state, normalized: filters });
+            }
+          } catch (err) {
+            if (filterDebug()) {
+              // eslint-disable-next-line no-console
+              console.debug('[filterSync] getSlicerState failed', { widget: id, err });
+            }
           }
+          if (filters.length === 0) {
+            filters = buildFiltersFromDataPoints(detail?.dataPoints);
+          }
+          publishFilters(id, filters);
         })();
         return;
       }

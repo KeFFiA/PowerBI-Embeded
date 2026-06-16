@@ -84,7 +84,15 @@ export function PowerBIAnalyticsProvider({ reportKey, children }: Props) {
         merged.push(...filters);
       }
       try {
-        void (reg.embed as unknown as { setFilters: (f: unknown[]) => void }).setFilters(merged);
+        const result = (reg.embed as unknown as { setFilters: (f: unknown[]) => Promise<void> }).setFilters(merged);
+        if (result && typeof (result as Promise<void>).catch === 'function') {
+          (result as Promise<void>).catch((err) => {
+            if (import.meta.env.DEV || (typeof localStorage !== 'undefined' && localStorage.getItem('pbiFilterDebug') === '1')) {
+              // eslint-disable-next-line no-console
+              console.debug('[filterSync] setFilters rejected', { target: id, merged, err });
+            }
+          });
+        }
       } catch {
         // embed may have been unmounted
       }

@@ -34,6 +34,37 @@ export function buildFiltersFromDataPoints(rawDataPoints: unknown): models.IBasi
   );
 }
 
+/**
+ * Normalises whatever `getSlicerState()` returns into filters that are safe to
+ * pass to `setFilters` on sibling visuals. Dropdown/list slicers return Basic
+ * filters ({ target:{table,column}, operator, values }); we rebuild those as
+ * clean Basic filters. Other well-formed filters (advanced / relative date /
+ * hierarchy) are passed through. Anything we can't recognise is dropped so it
+ * can never poison the merged filter array applied to other visuals.
+ */
+export function normalizeSlicerFilters(raw: unknown): models.IFilter[] {
+  if (!Array.isArray(raw)) return [];
+  const out: models.IFilter[] = [];
+
+  for (const entry of raw) {
+    const f = entry as Record<string, unknown>;
+    const target = f?.target as Record<string, unknown> | undefined;
+    const table = target?.table as string | undefined;
+    const column = target?.column as string | undefined;
+    const values = f?.values;
+
+    if (table && column && Array.isArray(values)) {
+      const operator = f.operator === 'NotIn' ? 'NotIn' : 'In';
+      out.push(buildBasicFilter(table, column, operator, values as Array<string | number | boolean>));
+    } else if (f && typeof f.$schema === 'string' && f.target) {
+      // Well-formed non-basic filter (advanced / relative-date / hierarchy).
+      out.push(f as unknown as models.IFilter);
+    }
+  }
+
+  return out;
+}
+
 /** Builds a single Basic ("In"/"NotIn") filter for a table[column]. */
 export function buildBasicFilter(
   table: string,
