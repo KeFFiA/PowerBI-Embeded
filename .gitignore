@@ -1,10 +1,11 @@
 node_modules/
 dist/
 .env
-.env
-!.env
 *.local
 .DS_Store
 npm-debug.log*
 # Real allowlist may contain workspace/report ids — keep the example only.
 backend/allowlist.json
+.idea
+backend/allowlist.dev.example.json
+CLAUDE.md
